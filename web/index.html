@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WIRA-SPASIAL — Peta Nasional</title>
+  <meta name="description" content="Wawasan Intelijen & Ruang Analisis Spasial" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%230f2236' stroke='%235ccfe6' stroke-width='1.5'/%3E%3Cpath d='M4 9l3-4 2 3 3-2' fill='none' stroke='%234fe0b0' stroke-width='1.5'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    try { const t = localStorage.getItem("geoint.theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+</head>
+<body>
+  <!-- ============ RAIL DOMAIN ============ -->
+  <nav id="rail" aria-label="Domain">
+    <div class="brand" title="WIRA-SPASIAL — Wawasan Intelijen & Ruang Analisis Spasial">WS</div>
+    <button data-mod="home" class="active" title="Beranda"><i class="ico">⌂</i><span>Beranda</span></button>
+    <button data-mod="sat" class="dom" style="--dc:var(--sat)" title="Satellite"><i>SAT</i><span>Satellite</span></button>
+    <button data-mod="dis" class="dom" style="--dc:var(--dis)" title="Disaster"><i>DIS</i><span>Disaster</span></button>
+    <button data-mod="sea" class="dom" style="--dc:var(--sea)" title="Maritime"><i>SEA</i><span>Maritime</span></button>
+    <button data-mod="mne" class="dom" style="--dc:var(--mne)" title="Mining"><i>MNE</i><span>Mining</span></button>
+    <button data-mod="inf" class="dom" style="--dc:var(--inf)" title="Infrastructure"><i>INF</i><span>Infra</span></button>
+    <button data-mod="os" class="dom" style="--dc:var(--os)" title="OSINT Fusion"><i>OS</i><span>OSINT</span></button>
+    <div class="spacer"></div>
+    <button data-mod="alert" title="Alert"><i class="ico">🔔</i><span>Alert</span><b id="alert-count" hidden></b></button>
+    <button data-mod="aktivitas" title="Log aktivitas"><i class="ico">☰</i><span>Aktivitas</span></button>
+    <button data-mod="settings" title="Pengaturan & sumber data"><i class="ico">⚙</i><span>Pengaturan</span></button>
+  </nav>
+
+  <aside id="sidebar">
+    <!-- ============ BERANDA ============ -->
+    <section id="mod-home" class="mod active">
+      <div class="hero">
+        <div class="app-name">WIRA-SPASIAL</div>
+        <div class="app-full">Wawasan Intelijen &amp; Ruang Analisis Spasial</div>
+        <h1>Geospatial Intelligence</h1>
+        <p class="muted">Integrated geospatial intelligence and spatial analysis platform.</p>
+      </div>
+      <div id="dom-cards" class="dom-cards"></div>
+      <div class="card">
+        <div class="card-head"><h2>Status sistem</h2><span id="home-auto" class="badge"></span></div>
+        <p id="home-sys" class="muted"></p>
+      </div>
+    </section>
+
+    <!-- ============ SAT ============ -->
+    <section id="mod-sat" class="mod">
+      <header class="mod-head" style="--dc:var(--sat)">
+        <div class="mod-title"><i>SAT</i><div><h1>Satellite</h1><p>Perubahan lahan, vegetasi, pesisir</p></div></div>
+        <nav id="tabs">
+          <button data-tab="analisa" class="active">Analisa</button>
+          <button data-tab="pantauan">Pantauan</button>
+          <button data-tab="riwayat">Riwayat</button>
+        </nav>
+      </header>
+
+      <section id="tab-analisa" class="tab active">
+        <div class="card">
+          <h2>1. Area of Interest</h2>
+          <label>Wilayah contoh
+            <select id="preset"><option value="">— gambar sendiri di peta —</option></select>
+          </label>
+          <p class="hint">Atau gunakan alat ▭ / ⬠ di peta untuk menggambar area.</p>
+          <p id="aoi-info" class="muted">Belum ada area dipilih.</p>
+        </div>
+
+        <div class="card">
+          <h2>2. Periode pembanding</h2>
+          <div class="grid2">
+            <label>Sebelum — mulai<input type="date" id="b-start" /></label>
+            <label>Sebelum — akhir<input type="date" id="b-end" /></label>
+            <label>Sesudah — mulai<input type="date" id="a-start" /></label>
+            <label>Sesudah — akhir<input type="date" id="a-end" /></label>
+          </div>
+          <p class="hint">Gunakan rentang ≥ 3 bulan, idealnya musim kemarau (Jun–Sep), agar komposit bebas awan. Analisa mencakup hutan/vegetasi dan perubahan pesisir (abrasi, akresi, reklamasi, tambak).</p>
+          <label>Sumber data
+            <select id="source"></select>
+          </label>
+          <label>Nama analisa<input type="text" id="an-name" placeholder="opsional" /></label>
+          <div class="row">
+            <button id="btn-analyze" class="primary">Jalankan analisa</button>
+            <button id="btn-save-aoi" class="ghost">Simpan sebagai pantauan</button>
+          </div>
+          <div id="job" hidden>
+            <div class="progress"><div id="job-bar"></div></div>
+            <p id="job-msg" class="muted"></p>
+            <button id="btn-job-cancel" class="ghost small">Batalkan analisa</button>
+          </div>
+        </div>
+
+        <div id="result" hidden>
+          <div class="card">
+            <h2 id="res-title">Hasil</h2>
+            <p id="res-meta" class="muted"></p>
+            <div id="res-sources"></div>
+            <div class="stats">
+              <div class="stat human"><span>Aktivitas manusia</span><b id="st-human">–</b></div>
+              <div class="stat natural"><span>Proses alami</span><b id="st-natural">–</b></div>
+              <div class="stat verify"><span>Perlu verifikasi</span><b id="st-verify">–</b></div>
+              <div class="stat"><span>Hutan berubah</span><b id="st-pct">–</b></div>
+            </div>
+            <div id="class-bars"></div>
+            <div class="row">
+              <a id="dl-geojson" class="ghost btn" href="#">Unduh GeoJSON</a>
+              <a id="dl-csv" class="ghost btn" href="#">Unduh CSV</a>
+              <button id="btn-rerun" class="ghost" title="Jalankan ulang klasifikasi memakai citra yang sudah tersimpan">Analisa ulang</button>
+            </div>
+            <p id="dl-inputs" class="muted" hidden></p>
+          </div>
+          <div class="card">
+            <h2>Area perubahan</h2>
+            <div class="filters">
+              <select id="flt-cat"><option value="">Semua kategori</option></select>
+              <select id="flt-class"><option value="">Semua kelas</option></select>
+            </div>
+            <ul id="det-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-pantauan" class="tab">
+        <div class="card" id="auto-card">
+          <div class="card-head"><h2>Analisa otomatis</h2><span id="auto-badge" class="badge"></span></div>
+          <p id="auto-info" class="muted"></p>
+          <div class="row">
+            <button id="btn-auto-start" class="primary">▶ Mulai analisa otomatis</button>
+            <button id="btn-auto-stop" class="ghost">■ Hentikan analisa otomatis</button>
+            <button id="btn-auto-check" class="ghost small">Periksa sekarang</button>
+          </div>
+          <label class="inline" style="margin-top:8px"><input type="checkbox" id="auto-cancel" checked /> Saat dihentikan, batalkan juga analisa otomatis yang antri/berjalan</label>
+          <ul id="auto-running" class="list"></ul>
+        </div>
+        <div class="card">
+          <h2>Hasil pemantauan terkumpul</h2>
+          <div class="stats" id="acc-stats"></div>
+          <p id="acc-meta" class="muted"></p>
+        </div>
+        <div class="card">
+          <h2>Area pantauan otomatis</h2>
+          <p class="hint">Setiap area dianalisa ulang sesuai interval: komposit <i>window</i> hari terakhir dibandingkan dengan periode yang sama <i>baseline</i> hari sebelumnya. Alert dibuat bila ditemukan aktivitas manusia.</p>
+          <ul id="aoi-list" class="list"></ul>
+        </div>
+      </section>
+
+      <section id="tab-riwayat" class="tab">
+        <div class="card">
+          <h2>Riwayat analisa</h2>
+          <ul id="hist-list" class="list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- ============ DIS ============ -->
+    <section id="mod-dis" class="mod">
+      <header class="mod-head" style="--dc:var(--dis)">
+        <div class="mod-title"><i>DIS</i><div><h1>Disaster</h1><p>Gempa, hotspot, paparan risiko</p></div></div>
+      </header>
+      <div class="card">
+        <div class="card-head"><h2>Gempa bumi</h2>
+          <span class="row tight"><button class="ghost small" data-run="bmkg">BMKG ↻</button><button class="ghost small" data-run="usgs">USGS ↻</button></span></div>
+        <div class="filters">
+          <select id="eq-days"><option value="1">24 jam</option><option value="3">3 hari</option><option value="7" selected>7 hari</option><option value="30">30 hari</option></select>
+          <select id="eq-mag"><option value="0">Semua M</option><option value="4">M ≥ 4</option><option value="5" selected>M ≥ 5</option><option value="6">M ≥ 6</option></select>
+        </div>
+        <p id="eq-status" class="muted"></p>
+        <ul id="eq-list" class="list compact"></ul>
+      </div>
+      <div class="card" id="eq-exposure" hidden></div>
+      <div class="card">
+        <div class="card-head"><h2>Hotspot (24 jam)</h2><button class="ghost small" data-run="firms">FIRMS ↻</button></div>
+        <div id="hs-summary"><p class="muted">Memuat…</p></div>
+      </div>
+    </section>
+
+    <!-- ============ SEA ============ -->
+    <section id="mod-sea" class="mod">
+      <header class="mod-head" style="--dc:var(--sea)">
+        <div class="mod-title"><i>SEA</i><div><h1>Maritime</h1><p>Port analytics, AIS berlisensi</p></div></div>
+      </header>
+      <div class="card">
+        <div class="card-head"><h2>Pelabuhan</h2><button class="ghost small" data-run="s1_ports" title="Pindai 4 pelabuhan yang paling lama tidak dipindai">Pindai radar ↻</button></div>
+        <p class="hint">Jumlah kapal dari deteksi radar Sentinel-1 (bangunan tetap seperti bagan & platform disaring). Estimasi — bukan sensus resmi.</p>
+        <ul id="port-list" class="list compact"></ul>
+        <details class="sub"><summary>Tambah pelabuhan</summary>
+          <div class="grid2">
+            <label>Nama<input type="text" id="port-name" /></label>
+            <label>Radius (km)<input type="number" id="port-half" value="6" min="1" max="25" /></label>
+            <label>Lintang<input type="number" id="port-lat" step="0.0001" /></label>
+            <label>Bujur<input type="number" id="port-lon" step="0.0001" /></label>
+          </div>
+          <div class="row"><button class="ghost small" id="port-center">Ambil pusat peta</button><button class="primary small" id="port-add">Tambah</button></div>
+        </details>
+      </div>
+      <div class="card" id="port-detail" hidden></div>
+      <div class="card">
+        <div class="card-head"><h2>AIS</h2><span class="badge access berlisensi">berlisensi</span></div>
+        <div id="ais-status" class="muted"></div>
+        <label>Impor CSV AIS dari penyedia berlisensi (kolom: mmsi, timestamp, lat, lon, sog, …)
+          <input type="file" id="ais-file" accept=".csv,text/csv" /></label>
+        <p class="hint">Dengan data AIS pada waktu akuisisi radar, kapal radar tanpa pasangan AIS dihitung sebagai <b>dark vessel</b>.</p>
+      </div>
+    </section>
+
+    <!-- ============ MNE ============ -->
+    <section id="mod-mne" class="mod">
+      <header class="mod-head" style="--dc:var(--mne)">
+        <div class="mod-title"><i>MNE</i><div><h1>Mining</h1><p>Perubahan lahan + lapisan izin</p></div></div>
+      </header>
+      <div class="card">
+        <div class="card-head"><h2>Kepatuhan izin</h2><button class="ghost small" id="mne-recompute">Hitung ulang</button></div>
+        <div id="mne-stats" class="stats"></div>
+        <p class="hint">Dari analisa terbaru tiap area. "Di luar izin" = tidak berada di izin pada lapisan yang diimpor — indikasi, wajib verifikasi lapangan. Tanpa lapisan izin, statusnya "tidak ada data izin".</p>
+        <h3>Tambang di luar izin / izin tidak aktif</h3>
+        <ul id="mne-outside" class="list compact"></ul>
+        <h3>Gangguan per izin</h3>
+        <ul id="mne-permits" class="list compact"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Lapisan izin & kawasan</h2><label class="inline"><input type="checkbox" id="mne-show" /> tampilkan di peta</label></div>
+        <ul id="mne-layers" class="list compact"></ul>
+        <details class="sub" open><summary>Impor berkas (GeoJSON / Shapefile .zip)</summary>
+          <label>Berkas<input type="file" id="mne-file" accept=".geojson,.json,.zip" /></label>
+          <div class="grid2">
+            <label>Nama lapisan<input type="text" id="mne-name" placeholder="mis. IUP Sulteng 2025" /></label>
+            <label>Jenis<select id="mne-kind"></select></label>
+            <label>Hak akses<select id="mne-access"><option value="terbatas">terbatas</option><option value="publik">publik</option><option value="berlisensi">berlisensi</option></select></label>
+            <label>Lisensi/sumber<input type="text" id="mne-license" placeholder="mis. ESDM MOMI" /></label>
+          </div>
+          <button class="primary small" id="mne-upload">Impor</button>
+        </details>
+        <details class="sub"><summary>Impor dari ArcGIS REST (FeatureServer/MapServer)</summary>
+          <label>URL layer<input type="text" id="arc-url" placeholder="https://…/FeatureServer/0" /></label>
+          <label class="inline"><input type="checkbox" id="arc-bbox" checked /> batasi ke tampilan peta saat ini</label>
+          <button class="ghost small" id="arc-import">Impor (pakai nama/jenis/akses di atas)</button>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ INF ============ -->
+    <section id="mod-inf" class="mod">
+      <header class="mod-head" style="--dc:var(--inf)">
+        <div class="mod-title"><i>INF</i><div><h1>Infrastructure</h1><p>Jalan, bangunan, kawasan urban</p></div></div>
+      </header>
+      <div class="card">
+        <h2>Area pantauan</h2>
+        <p class="hint">Inventaris OpenStreetMap + perubahan dari analisa satelit (jalan & bangunan baru, jalan baru yang belum terpetakan).</p>
+        <ul id="inf-list" class="list compact"></ul>
+      </div>
+      <div class="card" id="inf-detail" hidden></div>
+    </section>
+
+    <!-- ============ OS ============ -->
+    <section id="mod-os" class="mod">
+      <header class="mod-head" style="--dc:var(--os)">
+        <div class="mod-title"><i>OS</i><div><h1>OSINT Fusion</h1><p>Berita dan geolokasi peristiwa</p></div></div>
+      </header>
+      <div class="card">
+        <div class="card-head"><h2>Berita</h2>
+          <span class="row tight"><button class="ghost small" data-run="rss_media">RSS ↻</button><button class="ghost small" data-run="gnews">Google News ↻</button></span></div>
+        <div class="filters">
+          <select id="os-topic"><option value="">Semua topik</option></select>
+          <select id="os-days"><option value="1">24 jam</option><option value="3">3 hari</option><option value="7" selected>7 hari</option><option value="30">30 hari</option></select>
+        </div>
+        <div class="filters">
+          <input type="text" id="os-q" placeholder="Cari judul…" />
+          <label class="inline"><input type="checkbox" id="os-geo" checked /> berlokasi</label>
+        </div>
+        <p class="hint">Lokasi = pusat kab/kota/provinsi yang disebut berita (perkiraan). Berita adalah petunjuk, bukan bukti — cek fusi dengan data lain.</p>
+        <ul id="os-list" class="list compact"></ul>
+      </div>
+      <div class="card" id="os-detail" hidden></div>
+    </section>
+
+    <!-- ============ ALERT ============ -->
+    <section id="mod-alert" class="mod">
+      <header class="mod-head"><div class="mod-title"><i class="ico">🔔</i><div><h1>Alert</h1><p>Semua domain</p></div></div></header>
+      <div class="card">
+        <div class="filters">
+          <select id="alert-domain"><option value="">Semua domain</option></select>
+          <label class="inline"><input type="checkbox" id="alert-all" /> termasuk yang sudah ditinjau</label>
+        </div>
+        <ul id="alert-list" class="list"></ul>
+      </div>
+    </section>
+
+    <!-- ============ AKTIVITAS ============ -->
+    <section id="mod-aktivitas" class="mod">
+      <header class="mod-head"><div class="mod-title"><i class="ico">☰</i><div><h1>Log aktivitas</h1><p>Tersimpan permanen</p></div></div></header>
+      <div class="card">
+        <ul id="act-list" class="list"></ul>
+        <button id="act-more" class="ghost small" hidden>Muat lebih banyak</button>
+      </div>
+    </section>
+
+    <!-- ============ PENGATURAN ============ -->
+    <section id="mod-settings" class="mod">
+      <header class="mod-head"><div class="mod-title"><i class="ico">⚙</i><div><h1>Pengaturan</h1><p>Hak akses & sumber data</p></div></div></header>
+      <div class="card">
+        <h2>Hak akses</h2>
+        <p id="acc-info" class="muted"></p>
+        <label>Token akses (untuk data terbatas & berlisensi)
+          <input type="password" id="acc-token" autocomplete="off" /></label>
+        <div class="row"><button class="primary small" id="acc-save">Simpan token</button><button class="ghost small" id="acc-clear">Hapus</button></div>
+      </div>
+      <div class="card">
+        <h2>Tampilan</h2>
+        <label class="inline"><input type="checkbox" id="theme-light" /> Tema terang</label>
+      </div>
+      <div class="card">
+        <h2>Sumber data</h2>
+        <p class="hint">Feed otomatis berjalan sesuai interval bila "Analisa otomatis" aktif (tab SAT › Pantauan).</p>
+        <div id="src-table"></div>
+      </div>
+    </section>
+  </aside>
+
+  <main id="map"></main>
+
+  <div id="layer-panel">
+    <details open>
+      <summary><b>Lapisan nasional</b></summary>
+      <div id="nat-layers"></div>
+      <label>Periode <select id="nat-days"><option value="1">24 jam</option><option value="3">3 hari</option><option value="7" selected>7 hari</option><option value="30">30 hari</option></select></label>
+      <label title="Pintasan: tombol L"><input type="checkbox" id="lyr-lens" /> Lensa pembesar ×4 (L)</label>
+    </details>
+    <details id="an-layers" open hidden>
+      <summary><b>Lapisan analisa</b></summary>
+      <label><input type="radio" name="img" value="none" /> Basemap saja</label>
+      <label><input type="radio" name="img" value="before" /> Citra sebelum</label>
+      <label><input type="radio" name="img" value="after" checked /> Citra sesudah</label>
+      <label><input type="checkbox" id="lyr-changes" /> Raster perubahan</label>
+      <label><input type="checkbox" id="lyr-polys" checked /> Poligon deteksi</label>
+      <label>Opasitas citra <input type="range" id="lyr-opacity" min="0" max="1" step="0.05" value="0.9" /></label>
+      <div id="legend"></div>
+    </details>
+  </div>
+
+  <div id="toast" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script src="app.js"></script>
+  <script src="focus.js"></script>
+  <script src="domains.js"></script>
+</body>
+</html>

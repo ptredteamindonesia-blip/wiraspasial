@@ -1,0 +1,27 @@
+# Layanan systemd (Linux/WSL dengan systemd) agar WIRA-SPASIAL berjalan otomatis sejak boot
+# dan dinyalakan ulang bila crash.
+#
+#   sudo cp deploy/geoint.service /etc/systemd/system/geoint.service
+#   # sesuaikan User, WorkingDirectory, dan ExecStart di bawah
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now geoint
+#   systemctl status geoint ; journalctl -u geoint -f
+[Unit]
+Description=WIRA-SPASIAL - Wawasan Intelijen & Ruang Analisis Spasial
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=geoint
+WorkingDirectory=/opt/GeoInt
+Environment=GEOINT_DATA_DIR=/opt/GeoInt/data
+# Environment=FIRMS_MAP_KEY=isi_key_anda
+ExecStart=/opt/GeoInt/.venv/bin/python run.py --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
